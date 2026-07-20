@@ -80,15 +80,21 @@ class NeuralNetwork:
         with open(filename, 'rb') as f:
             return pickle.load(f)
 
-dataset = pd.read_csv('mnist.csv').sample(frac=1)
+mnist = pd.read_csv('mnist.csv')
+# Labels
+y = mnist.iloc[:, 0].values
 
-X = dataset.iloc[:, 1:].to_numpy()
-y = dataset.iloc[:, 0].to_numpy()
-X = X / 255.0  # Normalize pixel values to [0, 1]
+# Images
+X = mnist.iloc[:, 1:].values.astype(np.float32) / 255.0
 
+# Split into train/test
 train_size = int(0.8 * len(X))
-X_train, X_test = X[:train_size], X[train_size:]
-y_train, y_test = y[:train_size], y[train_size:]
+
+X_train = X[:train_size]
+X_test = X[train_size:]
+
+y_train = y[:train_size]
+y_test = y[train_size:]
 
 nn = NeuralNetwork(X_train.shape[1], 128, 10)
 nn.train(X_train, y_train, learning_rate=0.01, batch_size=32, epochs=100)
