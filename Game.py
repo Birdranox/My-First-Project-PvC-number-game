@@ -9,15 +9,16 @@ HEIGHT = 700
 
 class NeuralNetwork:
 
-    def __init__():
+    @staticmethod
+    def load_model(filename):
             # Load the model parameters from a file
-            with open("NeuralNetwork.dat", 'rb') as f:
+            with open(filename, 'rb') as f:
                 return pickle.load(f)
 
     def relu(self, Z):
         return np.maximum(0, Z)
 
-    def softmax(Z):
+    def softmax(self, Z):
         expZ = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         return expZ / np.sum(expZ, axis=1, keepdims=True)
 
@@ -44,6 +45,8 @@ class NeuralNetwork:
         output = self.feedforward(X)
 
         return np.argmax(output, axis=1)
+
+nn = NeuralNetwork.load_model("NeuralNetwork.dat")
 
 mnist = np.loadtxt("mnist.csv", delimiter=",", skiprows=1)
 
@@ -76,7 +79,7 @@ while running:
                 current_image = images[index].reshape(28, 28)
 
                 actual = labels[index]
-                nn = NeuralNetwork("NeuralNetwork.dat")
+
                 prediction = nn.predict(images[index].reshape(1, -1))[0]
 
     #Background color
