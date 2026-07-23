@@ -4,8 +4,34 @@ import pickle
 
 pygame.init()
 
+# Variables for game states
+current_image = None
+prediction = ""
+actual = ""
+result = ""
+index = None
+round_active = False
+answer_revealed = False
+winner = None
+
+running = True
+
+player_score = 0
+nn_score = 0
+
+player_guess = None
+nn_guess = None
+
+round_active = False
+
+round_start = 0
+nn_reveal_time = 0
+time_left = 0
+
 WIDTH = 1000
 HEIGHT = 700
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("My Game")
 
 class NeuralNetwork:
 
@@ -48,39 +74,120 @@ class NeuralNetwork:
 
 nn = NeuralNetwork.load_model("NeuralNetwork.dat")
 
+#Connect to MNIST dataset
 mnist = np.loadtxt("mnist.csv", delimiter=",", skiprows=1)
 
 labels = mnist[:, 0].astype(int)
 images = mnist[:, 1:] / 255.0
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("My Game")
-
 #Create button
 button = pygame.Rect(700, 550, 220, 60)
 font = pygame.font.SysFont(None, 36)
-
-current_image = None
-prediction = ""
-actual = ""
-running = True
 
 while running:
     for event in pygame.event.get():
 
         if event.type == pygame.QUIT:
             running = False
-        
+
+        #Start new round
         if event.type == pygame.MOUSEBUTTONDOWN:
+
             if button.collidepoint(event.pos):
+
+                winner = None
+                result = ""
 
                 index = np.random.randint(len(images))
 
-                current_image = images[index].reshape(28, 28)
-
+                current_image = images[index].reshape(28,28)
                 actual = labels[index]
 
-                prediction = nn.predict(images[index].reshape(1, -1))[0]
+                player_guess = None
+                nn_guess = None
+
+                round_active = True
+                answer_revealed = False
+
+                round_start = pygame.time.get_ticks()
+
+                # AI waits between 500 and 2000 ms
+                nn_reveal_time = round_start + np.random.randint(500,2000)
+
+        # Player input
+        if event.type == pygame.KEYDOWN:
+
+            # Player can only answer if nobody has answered
+            if round_active and not answer_revealed:
+
+                # Check if key is 0-9
+                if pygame.K_0 <= event.key <= pygame.K_9:
+
+                    player_guess = event.key - pygame.K_0
+
+                    winner = "Player"
+
+                    answer_revealed = True
+
+                    print("Player guessed:", player_guess)
+    # AI thinking
+    if round_active and not answer_revealed:
+
+        current_time = pygame.time.get_ticks()
+
+        if current_time >= nn_reveal_time:
+
+            nn_guess = nn.predict(
+                images[index].reshape(1,-1)
+            )[0]
+
+            winner = "AI"
+
+            answer_revealed = True
+
+            print("AI guessed:", nn_guess)
+    
+    # Decide winner
+    if answer_revealed:
+
+        if winner == "Player":
+
+            if player_guess == actual:
+                player_score += 1
+                result = "Player Wins!"
+            else:
+                result = "Player Wrong!"
+
+                # AI reveals its answer after the round
+                nn_guess = nn.predict(
+                    images[index].reshape(1,-1)
+                )[0]
+
+
+        elif winner == "AI":
+
+            if nn_guess == actual:
+                nn_score += 1
+                result = "AI Wins!"
+            else:
+                result = "AI Wrong!"
+
+                # Reveal player's chance was missed
+                player_guess = "Too Slow"
+
+        answer_revealed = False
+        round_active = False
+
+    if round_active and not answer_revealed:
+
+        elapsed = pygame.time.get_ticks() - round_start
+
+        time_left = 5 - elapsed / 1000
+
+        if time_left <= 0:
+            round_active = False
+            result = "Time's up!"
+
 
     #Background color
     screen.fill((0, 0, 0))
@@ -107,16 +214,48 @@ while running:
     #Draw button
     pygame.draw.rect(screen, (70, 130, 180), button)
 
-    text = font.render("Random Digit", True, (255, 255, 255))
+    text = font.render("New Round", True, (255, 255, 255))
     screen.blit(text, (button.x + 25, button.y + 18))
 
     if current_image is not None:
 
-        pred_text = font.render(f"Prediction: {prediction}", True, (255,255,255))
-        actual_text = font.render(f"Actual: {actual}", True, (255,255,255))
+        timer_text = font.render(
+            f"Time: {max(0,time_left):.1f}",
+            True,
+            (255,255,255)
+        )
 
-        screen.blit(pred_text, (450, 120))
-        screen.blit(actual_text, (450, 170))
+        player_text = font.render(
+            f"Player: {player_guess if player_guess is not None else 'Waiting...'}",
+            True,
+            (255,255,255)
+        )
+
+        ai_text = font.render(
+            f"AI: {nn_guess if nn_guess is not None else 'Thinking...'}",
+            True,
+            (255,255,255)
+        )
+
+        score_text = font.render(
+            f"Player {player_score} - {nn_score} AI",
+            True,
+            (255,255,0)
+        )
+
+        result_text = font.render(
+            result,
+            True,
+            (0,255,0)
+        )
+
+
+        screen.blit(timer_text,(450,80))
+        screen.blit(player_text,(450,130))
+        screen.blit(ai_text,(450,180))
+        screen.blit(score_text,(450,230))
+        screen.blit(result_text,(450,280))
+
 
 
 
